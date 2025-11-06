@@ -4,26 +4,52 @@ from pydantic import BaseModel, Field
 
 
 # Webhook payload models
+class HeyreachList(BaseModel):
+    id: int
+    name: str
+    custom_fields: Optional[Dict] = None
+
+
 class HeyreachLead(BaseModel):
     id: str
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
-    company: Optional[str] = None
-    title: Optional[str] = None
-    linkedInProfileUrl: str
-    email: Optional[str] = None
+    profile_url: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    full_name: Optional[str] = None
+    company_name: Optional[str] = None
+    company_url: Optional[str] = None
+    position: Optional[str] = None
+    location: Optional[str] = None
+    summary: Optional[str] = None
+    about: Optional[str] = None
+    email_address: Optional[str] = None
+    tags: Optional[List[str]] = None
+    lists: Optional[List[HeyreachList]] = None
+
+
+class HeyreachSender(BaseModel):
+    id: int
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    full_name: Optional[str] = None
+    email_address: Optional[str] = None
+    profile_url: Optional[str] = None
 
 
 class HeyreachCampaign(BaseModel):
-    id: str
+    id: int
     name: str
+    status: Optional[str] = None
 
 
 class HeyreachWebhook(BaseModel):
-    event: str
+    event_type: str
     lead: HeyreachLead
     campaign: Optional[HeyreachCampaign] = None
+    sender: Optional[HeyreachSender] = None
+    connection_message: Optional[str] = None
     timestamp: str
+    correlation_id: Optional[str] = None
 
 
 # API response models

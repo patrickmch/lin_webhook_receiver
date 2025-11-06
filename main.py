@@ -80,7 +80,7 @@ async def receive_heyreach_webhook(webhook: HeyreachWebhook, db: Session = Depen
     Always returns 200 OK, even if there's an error (errors are logged).
     """
     try:
-        logger.info(f"Received webhook: {webhook.event} for lead {webhook.lead.id}")
+        logger.info(f"Received webhook: {webhook.event_type} for lead {webhook.lead.id}")
 
         # Convert webhook to JSON for storage
         raw_payload = webhook.model_dump_json()
@@ -88,20 +88,20 @@ async def receive_heyreach_webhook(webhook: HeyreachWebhook, db: Session = Depen
         # Get or create prospect
         prospect = database.get_or_create_prospect(
             db=db,
-            linkedin_url=webhook.lead.linkedInProfileUrl,
+            linkedin_url=webhook.lead.profile_url,
             heyreach_lead_id=webhook.lead.id,
-            first_name=webhook.lead.firstName,
-            last_name=webhook.lead.lastName,
-            company=webhook.lead.company,
-            title=webhook.lead.title,
-            email=webhook.lead.email,
+            first_name=webhook.lead.first_name,
+            last_name=webhook.lead.last_name,
+            company=webhook.lead.company_name,
+            title=webhook.lead.position,
+            email=webhook.lead.email_address,
         )
 
         # Create event record
         database.create_event(
             db=db,
             prospect_id=prospect.id,
-            event_type=webhook.event,
+            event_type=webhook.event_type,
             heyreach_lead_id=webhook.lead.id,
             raw_payload=raw_payload,
         )
@@ -110,10 +110,10 @@ async def receive_heyreach_webhook(webhook: HeyreachWebhook, db: Session = Depen
         database.update_prospect_status(
             db=db,
             prospect=prospect,
-            event_type=webhook.event,
+            event_type=webhook.event_type,
         )
 
-        logger.info(f"Successfully processed webhook: {webhook.event}")
+        logger.info(f"Successfully processed webhook: {webhook.event_type}")
 
         return {"status": "success", "message": "Webhook processed"}
 
