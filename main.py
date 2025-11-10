@@ -3,9 +3,10 @@ from datetime import datetime
 from typing import Optional
 import json
 
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from pydantic import ValidationError
 
 import config
 import database
@@ -74,21 +75,42 @@ def health_check(db: Session = Depends(get_db)):
 
 # Webhook receiver endpoint
 @app.post("/webhooks/heyreach")
-async def receive_heyreach_webhook(webhook: HeyreachWebhook, db: Session = Depends(get_db)):
+async def receive_heyreach_webhook(request: Request, db: Session = Depends(get_db)):
     """
     Receive webhooks from Heyreach and process them.
     Always returns 200 OK, even if there's an error (errors are logged).
     """
     try:
-        logger.info(f"Received webhook: {webhook.event_type} for lead {webhook.lead.id}")
+        # Get raw body first
+        raw_body = await request.body()
+        body_str = raw_body.decode('utf-8')
 
-        # Convert webhook to JSON for storage
-        raw_payload = webhook.model_dump_json()
+        # Log the raw payload for debugging
+        logger.info(f"Received webhook - Raw body: {body_str}")
 
-        # Get or create prospect
+        # Parse JSON
+        try:
+            body_json = json.loads(body_str)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON: {e}")
+            return {"status": "error", "message": "Invalid JSON"}
+
+        # Validate against our model
+        try:
+            webhook = HeyreachWebhook(**body_json)
+        except ValidationError as e:
+            logger.error(f"Validation error: {e}")
+            logger.error(f"Received data: {json.dumps(body_json, indent=2)}")
+            return {"status": "error", "message": "Validation failed", "details": str(e)}
+
+        logger.info(f"Webhook validated: {webhook.event_type} for lead {webhook.lead.id}")
+
+        # Get or create prospect (use profile_url if available, otherwise use lead id)
+        linkedin_url = webhook.lead.profile_url or f"heyreach_lead_{webhook.lead.id}"
+
         prospect = database.get_or_create_prospect(
             db=db,
-            linkedin_url=webhook.lead.profile_url,
+            linkedin_url=linkedin_url,
             heyreach_lead_id=webhook.lead.id,
             first_name=webhook.lead.first_name,
             last_name=webhook.lead.last_name,
@@ -103,7 +125,7 @@ async def receive_heyreach_webhook(webhook: HeyreachWebhook, db: Session = Depen
             prospect_id=prospect.id,
             event_type=webhook.event_type,
             heyreach_lead_id=webhook.lead.id,
-            raw_payload=raw_payload,
+            raw_payload=body_str,
         )
 
         # Update prospect status based on event type
