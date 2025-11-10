@@ -201,6 +201,11 @@ def get_prospect_by_id(db: Session, prospect_id: int) -> Optional[Prospect]:
     return db.query(Prospect).filter(Prospect.id == prospect_id).first()
 
 
+def get_prospect_by_linkedin_url(db: Session, linkedin_url: str) -> Optional[Prospect]:
+    """Get single prospect by LinkedIn URL"""
+    return db.query(Prospect).filter(Prospect.linkedin_url == linkedin_url).first()
+
+
 def get_events_for_prospect(db: Session, prospect_id: int) -> List[Event]:
     """Get all events for a prospect"""
     return db.query(Event).filter(Event.prospect_id == prospect_id).order_by(Event.created_at.asc()).all()
